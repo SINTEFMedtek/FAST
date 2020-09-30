@@ -338,6 +338,18 @@ throw Exception("Not able to get sharegroup");
     size_t returnSize = 0;
     clGetGLContextInfoKHR_fn glGetGLContextInfo_func = (clGetGLContextInfoKHR_fn) clGetExtensionFunctionAddressForPlatform(platform, "clGetGLContextInfoKHR");
     glGetGLContextInfo_func(cps, CL_DEVICES_FOR_GL_CONTEXT_KHR, 32 * sizeof(cl_device_id), &cl_gl_device_ids, &returnSize);
+
+    reportError() << "glGetGLContextInfo_func: " << glGetGLContextInfo_func << Reporter::end();
+    if (glGetGLContextInfo_func){
+        try {
+            glGetGLContextInfo_func(cps, CL_DEVICES_FOR_GL_CONTEXT_KHR, 32 * sizeof(cl_device_id), &cl_gl_device_ids, &returnSize);
+        } catch (cl::Error &error) {
+            reportInfo() << "There was an error while calling glGetGLContextInfo_func: " << std::string(error.what()) << Reporter::end();
+        }
+    }
+    else
+        reportError() << "No glGetGLContextInfo_func found" << Reporter::end();
+
     delete[] cps;
 
     reportInfo() << "There are " << (returnSize / sizeof(cl_device_id)) << " devices that can be associated with the GL context" << Reporter::end();
@@ -593,7 +605,8 @@ std::vector<PlatformDevices> DeviceManager::getDevices(
     	reportInfo() << "Platform " << i << ": " <<  validPlatforms[i].getInfo<CL_PLATFORM_VENDOR>() << Reporter::end();
 
         try {
-            reportInfo() << "This platform has " << validPlatforms[i].getDevices(CL_DEVICE_TYPE_ALL, &devices) <<
+            validPlatforms[i].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+            reportInfo() << "This platform has " << devices.size() <<
                          " available devices in total" << reportEnd();
         } catch(cl::Error &error) {
             throw Exception("There was an error while getting OpenCL devices: " + std::string(error.what()));
@@ -617,9 +630,12 @@ std::vector<PlatformDevices> DeviceManager::getDevices(
             reportInfo() << "Looking for CPU devices only." << Reporter::end();
         }
         try {
-            validPlatforms[i].getDevices(deviceType, &devices);
+            reportInfo() << "getDevices(): " << validPlatforms[i].getDevices(deviceType, &devices) << " getDevices() end." << Reporter::end();
         } catch (cl::Error &error) {
-            throw Exception("There was an error while getting OpenCL devices: " + std::string(error.what()));
+            reportInfo() << "No GPU device found on platform." << Reporter::end();
+            reportInfo() << "There was an error while getting OpenCL devices: " << std::string(error.what()) << Reporter::end();
+            //throw Exception("There was an error while getting OpenCL devices: " + std::string(error.what()));
+            continue;
         }
         reportInfo() << devices.size() << " selected." << Reporter::end();
 
